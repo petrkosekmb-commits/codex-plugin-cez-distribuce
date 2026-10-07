@@ -1,0 +1,6 @@
+interface:
+  display_name: "ČEZ Distribuce – naměřená data"
+  short_description: "Čtení portálu PND, export a kontrola naměřených hodnot."
+  default_prompt: "Použij $cez-distribuce a přečti naměřenou spotřebu a dodávku za minulý měsíc."
+policy:
+  allow_implicit_invocation: true

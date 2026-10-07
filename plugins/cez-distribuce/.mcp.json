@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "cez-distribuce": {
+      "command": "powershell.exe",
+      "args": ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "./scripts/start-server.ps1"],
+      "cwd": ".",
+      "tool_timeout_sec": 60
+    }
+  }
+}

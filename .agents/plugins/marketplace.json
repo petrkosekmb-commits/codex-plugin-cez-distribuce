@@ -1,0 +1,20 @@
+{
+  "name": "cez-distribuce-community",
+  "interface": {
+    "displayName": "ČEZ Distribuce pro Codex"
+  },
+  "plugins": [
+    {
+      "name": "cez-distribuce",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cez-distribuce"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

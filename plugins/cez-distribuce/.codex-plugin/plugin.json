@@ -1,0 +1,19 @@
+{
+  "name": "cez-distribuce",
+  "version": "0.1.1",
+  "repository": "https://github.com/petrkosekmb-commits/codex-plugin-cez-distribuce",
+  "license": "MIT",
+  "description": "Čtení a export naměřených dat ČEZ PND přes přihlášený portál a místní kontrola CSV.",
+  "author": {"name": "Petr Košek"},
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "ČEZ Distribuce – naměřená data",
+    "shortDescription": "Export PND, kontrola CSV a přehled spotřeby a dodávky.",
+    "longDescription": "Používá existující přihlášení do ČEZ PND v Edge. Místní nástroje kontrolují CSV, počítají přehledy s výslovnou jednotkou a ukládají originální exporty s ověřením SHA256. Přímé SOAP API AZD vyžaduje samostatnou aktivaci u ČEZ a v této verzi není připojeno.",
+    "developerName": "Petr Košek",
+    "category": "Productivity",
+    "defaultPrompt": ["Přečti dostupné elektroměry v portálu ČEZ Distribuce.", "Stáhni z ČEZ naměřenou spotřebu a dodávku za minulý měsíc."],
+    "brandColor": "#F26B21"
+  }
+}
