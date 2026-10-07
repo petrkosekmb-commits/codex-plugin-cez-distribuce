@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 PORTAL = "https://pnd.cezdistribuce.cz/cezpnd2/external/dashboard/view"
 Z_ROOT = Path(os.environ.get("CEZ_OUTPUT_DIR", r"Z:\ZALOHA\07_CODEX\outputs\cez-distribuce")).expanduser()
 PENDING_ROOT = Path(os.environ.get("CEZ_PENDING_DIR", str(Path.home() / "Codex/pending-Z/outputs/cez-distribuce"))).expanduser()

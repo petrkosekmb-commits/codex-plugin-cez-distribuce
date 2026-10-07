@@ -1,19 +1,21 @@
-# ČEZ Distribuce – naměřená data
+# ČEZ Distribuce — metered data
 
-Místní plugin pro Codex. Obsahuje postup čtení a exportu z přihlášeného PND v Edge a nástroje pro kontrolu, souhrn a uchování CSV. Neobsahuje hesla ani přihlašovací relaci. Oficiální SOAP služba AZD není připojena.
+English | [Česky](README.cs.md)
 
-Komunitní projekt pro Windows, který není oficiálním produktem ČEZ Distribuce ani jí podporován.
+A local plugin for Codex. It includes a workflow for reading and exporting data from a signed-in PND session in Edge, along with tools for checking, summarizing, and preserving CSV files. It contains no passwords or login session. The official AZD SOAP service is not connected.
 
-Po instalaci otevřete nový chat a zadejte například: „Přečti dostupné elektroměry v ČEZ Distribuce“ nebo „Stáhni spotřebu a dodávku za září 2026“. Pro stahování je potřeba dostupný portál a platné přihlášení v Edge. Pro práci s již staženým CSV není přihlášení potřeba.
+A community project for Windows that is neither an official ČEZ Distribuce product nor endorsed by ČEZ Distribuce.
 
-První přihlášené zobrazení a nabídka exportů byly ověřeny 7. 10. 2026. Samotné stažení skončilo chybou připojení. Živá zkouška skutečného CSV tedy zbývá při obnovení dostupnosti portálu. Souhrn CSV vyžaduje ověřené názvy sloupců, jednotku a význam veličiny; formát se neodhadne automaticky.
+After installation, open a new chat and enter, for example: “Read the available electricity meters in ČEZ Distribuce” or “Download consumption and grid export for September 2026”. Downloading requires an available portal and a valid login session in Edge. No login is required to work with an already downloaded CSV file.
 
-Nástroje: `cez_status`, `inspect_csv`, `summarize_csv`, `save_export`, `list_exports`. CSV parser a stdio server používají standardní knihovnu Pythonu 3.12. Spouštěč upřednostňuje Python z místního runtime Codexu, jinak hledá `python.exe` v PATH. Server lze spustit přes `scripts/start-server.ps1`; portál obsluhuje samostatně dovednost prostřednictvím připojeného prohlížeče. Pro časy s offsetem je potřeba databáze Europe/Prague (na Windows ji může poskytovat balíček `tzdata`); její dostupnost ukazuje `cez_status`. Bez ní se převod odmítne.
+The initial signed-in view and export menu were verified on 7 October 2026. The download itself failed with a connection error. A live test with an actual CSV file therefore remains pending until portal availability is restored. CSV summarization requires verified column names, the unit, and the meaning of the measured quantity; the format is not inferred automatically.
 
-Výchozí finální exporty se ukládají do `Z:\ZALOHA\07_CODEX\outputs\cez-distribuce`, při nedostupnosti do `%USERPROFILE%\Codex\pending-Z\outputs\cez-distribuce`. Vlastní hlavní úložiště nastavte proměnnou prostředí `CEZ_OUTPUT_DIR` a záložní složku `CEZ_PENDING_DIR` před spuštěním Codexu. Zadejte absolutní cesty mimo OneDrive. Názvy výstupních příznaků `z_verified` a `stored_on_z` kvůli kompatibilitě označují hlavní úložiště i při jeho přenastavení. Kopie má ověřený SHA256. Odlišné existující soubory se nepřepisují. Plugin záložní složku sám nesynchronizuje.
+Tools: `cez_status`, `inspect_csv`, `summarize_csv`, `save_export`, `list_exports`. The CSV parser and stdio server use the Python 3.12 standard library. The launcher prefers Python from the local Codex runtime and otherwise looks for `python.exe` in PATH. The server can be started via `scripts/start-server.ps1`; the skill handles the portal separately through the connected browser. Timestamps with offsets require timezone data for Europe/Prague (on Windows, this can be provided by the `tzdata` package); `cez_status` reports its availability. Without it, conversion is refused.
 
-Zdroj podmínek API: https://www.cezdistribuce.cz/cs/pro-zakazniky/potrebuji-vyresit/elektromery-a-odecty/sluzba-automatickeho-zasilani-namerenych-dat
+By default, final exports are saved to `Z:\ZALOHA\07_CODEX\outputs\cez-distribuce`, or to `%USERPROFILE%\Codex\pending-Z\outputs\cez-distribuce` if the primary location is unavailable. To configure your own primary storage location, set the `CEZ_OUTPUT_DIR` environment variable, and set `CEZ_PENDING_DIR` for the fallback directory, before starting Codex. Specify absolute paths outside OneDrive. For compatibility, the output flag names `z_verified` and `stored_on_z` refer to the primary storage location even when it has been reconfigured. The copy is verified using SHA256. Existing files with different contents are not overwritten. The plugin does not synchronize the fallback directory itself.
 
-## Podpora projektu
+Source for the API terms: https://www.cezdistribuce.cz/cs/pro-zakazniky/potrebuji-vyresit/elektromery-a-odecty/sluzba-automatickeho-zasilani-namerenych-dat
 
-Pokud vám plugin pomáhá, můžete podpořit jeho další vývoj a údržbu na [Buy Me a Coffee](https://buymeacoffee.com/kojakcio). Děkuji za podporu.
+## Support the project
+
+If you find the plugin helpful, you can support its continued development and maintenance on [Buy Me a Coffee](https://buymeacoffee.com/kojakcio). Thank you for your support.
