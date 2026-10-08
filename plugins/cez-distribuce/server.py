@@ -9,12 +9,12 @@ import os
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 PORTAL = "https://pnd.cezdistribuce.cz/cezpnd2/external/dashboard/view"
 Z_ROOT = Path(os.environ.get("CEZ_OUTPUT_DIR", r"Z:\ZALOHA\07_CODEX\outputs\cez-distribuce")).expanduser()
 PENDING_ROOT = Path(os.environ.get("CEZ_PENDING_DIR", str(Path.home() / "Codex/pending-Z/outputs/cez-distribuce"))).expanduser()
@@ -75,11 +75,12 @@ def inspect_csv(**args):
            if any(v.strip() for v in r) and len(r) != len(header)]
     warnings = []
     if len(set(header)) != len(header) or any(not c for c in header):
-        warnings.append("Hlavička obsahuje prázdné nebo duplicitní názvy; upravte header_row.")
+        warnings.append("Hlavička obsahuje prázdné nebo duplicitní názvy; pro výpočet vyberte přesné pozice #1, #2… nebo opravte header_row.")
     if bad:
         warnings.append("Některé záznamy mají jiný počet polí než hlavička.")
     return {"path": str(p), "sha256": digest(data), "encoding": enc,
             "delimiter": delim, "columns": header, "data_rows": len(nonempty),
+            "column_selectors": [{"selector": f"#{i}", "name": name} for i, name in enumerate(header, 1)],
             "preamble": preamble[:10], "preview": nonempty[:5],
             "inconsistent_rows": bad[:20], "warnings": warnings,
             "portal_schema_verified": False,
@@ -98,7 +99,13 @@ def number(value):
 
 
 def stamp(value, time_format):
-    dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00")) if time_format == "iso" else datetime.strptime(value.strip(), time_format)
+    value = value.strip()
+    # PND denotes midnight at the end of a day as dd.MM.yyyy 24:00:00.
+    # Accept only that exact endpoint, never an invalid 24:01 or 24:00:01.
+    if time_format == "%d.%m.%Y %H:%M:%S" and re.fullmatch(r"\d{2}\.\d{2}\.\d{4} 24:00:00", value):
+        dt = datetime.strptime(value[:10], "%d.%m.%Y") + timedelta(days=1)
+    else:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00")) if time_format == "iso" else datetime.strptime(value, time_format)
     if dt.tzinfo is None and dt.month in (3, 10) and dt.hour == 2:
         # Czech repeated/nonexistent 02:xx on the last Sunday. Do not invent an offset.
         if dt.weekday() == 6 and dt.day + 7 > 31:
@@ -106,22 +113,32 @@ def stamp(value, time_format):
     return dt
 
 
+def column_index(selector, header):
+    if isinstance(selector, str) and re.fullmatch(r"#[1-9]\d*", selector):
+        index = int(selector[1:]) - 1
+        if index >= len(header):
+            raise ValueError("Pozice sloupce je mimo hlavičku CSV.")
+        return index
+    if not isinstance(selector, str) or not selector or header.count(selector) != 1:
+        raise ValueError("Název sloupce chybí nebo není jednoznačný; použijte pozici #1, #2… od jedné.")
+    return header.index(selector)
+
+
 def summarize_csv(path, timestamp_column, value_column, time_format, quantity, unit,
                   header_row=1, encoding=None, delimiter=None, interval_minutes=None,
-                  filters=None, status_column=None, accepted_statuses=None):
+                  filters=None, status_column=None, accepted_statuses=None, timestamp_position="as_recorded"):
     p, data, enc, delim, header, rows, _ = load_csv(path, header_row, encoding, delimiter)
-    if len(set(header)) != len(header) or any(not x for x in header):
-        raise ValueError("Výpočet vyžaduje jednoznačné neprázdné názvy sloupců.")
     filters = filters or {}
-    required = [timestamp_column, value_column, *filters]
+    time_index = column_index(timestamp_column, header)
+    value_index = column_index(value_column, header)
+    filter_indices = [(column_index(c, header), v) for c, v in filters.items()]
+    status_index = None
     if status_column:
-        required.append(status_column)
+        status_index = column_index(status_column, header)
         if not accepted_statuses:
             raise ValueError("Pro status_column zadejte neprázdné accepted_statuses podle významu statusů PND.")
     elif accepted_statuses is not None:
         raise ValueError("accepted_statuses vyžaduje status_column.")
-    if any(c not in header for c in required):
-        raise ValueError("Požadovaný sloupec nebyl nalezen v hlavičce.")
     factor = {"Wh": Decimal("0.001"), "kWh": Decimal(1), "MWh": Decimal(1000)}
     power = {"W": Decimal("0.001"), "kW": Decimal(1), "MW": Decimal(1000)}
     if quantity not in ("interval_energy", "mean_power", "cumulative_register"):
@@ -135,6 +152,10 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
             raise ValueError("Délka intervalu musí být kladná a nejvýše 1440 minut.")
     if quantity == "mean_power" and minutes is None:
         raise ValueError("Průměrný výkon vyžaduje výslovnou délku měřeného intervalu.")
+    if timestamp_position not in ("as_recorded", "interval_start", "interval_end"):
+        raise ValueError("Neplatný význam časové značky.")
+    if timestamp_position == "interval_end" and (minutes is None or quantity == "cumulative_register"):
+        raise ValueError("Konec intervalu vyžaduje délku intervalu a intervalovou energii nebo průměrný výkon.")
     values = []
     rejected = []
     for i, row in enumerate(rows, header_row + 1):
@@ -142,15 +163,14 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
             continue
         if len(row) != len(header):
             raise ValueError(f"Záznam {i} nemá stejný počet polí jako hlavička.")
-        record = dict(zip(header, row))
-        if any(record[c].strip() != v for c, v in filters.items()):
+        if any(row[c].strip() != v for c, v in filter_indices):
             continue
-        if status_column and record[status_column].strip() not in accepted_statuses:
+        if status_index is not None and row[status_index].strip() not in accepted_statuses:
             rejected.append(i)
             continue
         try:
-            dt = stamp(record[timestamp_column], time_format)
-            val = number(record[value_column])
+            dt = stamp(row[time_index], time_format)
+            val = number(row[value_index])
         except (ValueError, OverflowError):
             raise ValueError(f"Záznam {i}: neplatná hodnota nebo čas. Chybějící hodnota se nenahrazuje nulou; změna času vyžaduje offset.") from None
         if val < 0:
@@ -191,6 +211,9 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
             "rejected_row_examples": rejected[:20], "irregular_steps": gaps,
             "filters": filters, "daily_timezone": "Europe/Prague" if aware else "místní časy CSV bez offsetu",
             "period_complete": None, "warnings": warnings}
+    base["selected_columns"] = {"timestamp": {"selector": timestamp_column, "position": time_index + 1, "name": header[time_index]},
+                                "value": {"selector": value_column, "position": value_index + 1, "name": header[value_index]}}
+    base["timestamp_position"] = timestamp_position
     if quantity == "cumulative_register":
         if len(values) < 2 or any(b[1] < a[1] for a, b in zip(values, values[1:])):
             raise ValueError("Registr vyžaduje nejméně dvě hodnoty bez poklesu/resetu.")
@@ -200,11 +223,20 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
     multiplier = power[unit] * minutes / 60 if quantity == "mean_power" else factor[unit]
     daily = defaultdict(Decimal)
     for dt, val in values:
-        day = (dt.astimezone(zone) if aware else dt).date().isoformat()
+        at = key(dt) if aware else dt
+        if timestamp_position == "interval_end":
+            interval_start = at - timedelta(minutes=float(minutes))
+            just_before_end = at - timedelta(microseconds=1)
+            start_day = (interval_start.astimezone(zone) if aware else interval_start).date()
+            end_day = (just_before_end.astimezone(zone) if aware else just_before_end).date()
+            if start_day != end_day:
+                raise ValueError("Interval zasahuje do více místních dnů; denní energii nelze bez rozdělení určit.")
+            at = just_before_end
+        day = (at.astimezone(zone) if aware else at).date().isoformat()
         daily[day] += val * multiplier
     base.update({"total_kwh": str(sum(daily.values(), Decimal(0))),
                  "daily": [{"date": day, "kwh": str(val)} for day, val in sorted(daily.items())],
-                 "daily_attribution": "Energie je přiřazena datu časové značky CSV; ověřte, zda jde o začátek nebo konec intervalu."})
+                 "daily_attribution": "Energie patří dni intervalu před koncovou značkou, včetně půlnoci předchozího dne." if timestamp_position == "interval_end" else "Energie je přiřazena datu časové značky CSV; ověřte, zda jde o začátek nebo konec intervalu."})
     return base
 
 
@@ -266,11 +298,13 @@ def cez_status():
         tz_available = False
     return {"version": VERSION, "portal_url": PORTAL, "mode": "portal_browser_and_local_csv",
             "direct_cez_api_connected": False, "credentials_stored": False,
-            "live_export_verified": False, "schema_verified": False,
+            "live_export_verified": True, "schema_verified": True,
+            "verification": {"tested_on": "2026-10-08", "scope": "Jeden úplný CSV export profilu +A/-A/Rv v kW za září 2026, 2880 patnáctiminutových intervalů; součty porovnány se statistikou PND.",
+                             "current_session_checked": False, "all_export_formats_verified": False},
             "prague_timezone_available": tz_available,
             "z_available": Z_ROOT.parent.is_dir(), "final_root": str(Z_ROOT),
             "pending_root": str(PENDING_ROOT),
-            "notice": "PND a exportní nabídka byly načteny 7. 10. 2026; stažení skončilo chybou připojení. Místní nástroje nečtou živou relaci prohlížeče."}
+            "notice": "Historické ověření exportu proběhlo 8. 10. 2026 v uvedeném rozsahu; nejde o kontrolu aktuální dostupnosti portálu. Místní nástroje nečtou živou relaci prohlížeče."}
 
 
 def schema(properties=None, required=None):
@@ -291,6 +325,7 @@ SUMMARY_ARGS = {**CSV_ARGS, "timestamp_column": TEXT, "value_column": TEXT,
                 "interval_minutes": {"type": "number", "exclusiveMinimum": 0, "maximum": 1440},
                 "filters": {"type": "object", "additionalProperties": {"type": "string"}},
                 "status_column": TEXT,
+                "timestamp_position": {"type": "string", "enum": ["as_recorded", "interval_start", "interval_end"]},
                 "accepted_statuses": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
 TOOLS = [
     ("cez_status", "Stav místního pluginu a pravdivé rozlišení portálu a nepřipojeného API ČEZ.", schema(), True, cez_status),

@@ -1,4 +1,4 @@
-# Ověření portálu dne 7. 10. 2026
+# Ověření portálu a exportu dne 8. 10. 2026
 
 V existující relaci Edge byla načtena přihlášená stránka PND verze 2.6.1. Zobrazovala tři okna, sestavu „Rychlá sestava“, množiny označené „ELM …“ a období „Minulý měsíc“. Čísla elektroměrů a ID oken se do opakovatelného postupu nezapisují; zjisti je z aktuálního DOM. Spárování s adresami nebylo provedeno.
 
@@ -34,7 +34,23 @@ https://pnd.cezdistribuce.cz/cezpnd2/external/data/export
 &splitStrategy=
 ```
 
-Jde o pozorovaný endpoint webového exportu, nikoli dokumentované veřejné REST API. Stažení 7. 10. 2026 skončilo chybou připojení ERR_CONNECTION_TIMED_OUT a nebyl získán vzorový soubor. Skutečné schéma CSV tedy dosud není ověřené. Parser záměrně vyžaduje explicitní mapování sloupců; generická syntetická zkouška není ověření schématu ČEZ.
+Jde o pozorovaný endpoint webového exportu, nikoli dokumentované veřejné REST API. Úplné CSV bylo úspěšně staženo 8. 10. 2026 v existující přihlášené relaci. Ověřen byl jeden elektroměr a profil +A/-A/Rv v kW za září 2026, ne všechny formáty a profily.
+
+## Pozorované úplné CSV
+
+Soubor má kódování CP1250, středníkový oddělovač, desetinnou čárku a opakované bloky po třech sloupcích. Poslední středník vytváří prázdný sloupec. Pořadí ověř přes `inspect_csv`; nespoléhej na toto pořadí u jiného profilu.
+
+| Pozice | Ověřený profil | Volba pro výpočet |
+| --- | --- | --- |
+| #1 / #2 / #3 | Datum / +A\/<elektroměr> [kW] / Status | čas / odběr / status |
+| #4 / #5 / #6 | Datum / -A\/<elektroměr> [kW] / Status | čas / dodávka do sítě / status |
+| #7 / #8 / #9 | Datum / Rv\/<elektroměr> [kW] / Status | samostatná referenční řada |
+
+Pro výpočet energie použij `quantity="mean_power"`, `unit="kW"`, `interval_minutes=15`, `time_format="%d.%m.%Y %H:%M:%S"` a `timestamp_position="interval_end"`. Parser převede `dd.MM.yyyy 24:00:00` na půlnoc následujícího dne; energii intervalu přiřadí předchozímu dni. Počáteční značka byla 1. 9. 00:15:00 a poslední 30. 9. 24:00:00. Ověření zjistilo 2 880 intervalů, žádné mezery ani duplicity, 30 úplných dnů a shodu obou součtů se statistikou portálu na tři desetinná místa.
+
+Statusy odběru a dodávky měly 2 879 hodnot `naměřená data OK` a jednu hodnotu `naměřená data, výpadek napětí`. Pro porovnání se statistikou portálu byly zahrnuty obě hodnoty seznamu; výpadek musí být uveden ve výsledku. Výběr pouze `naměřená data OK` vrací částečný součet a jeden chybějící interval. Nepovoluj automaticky všechny statusy jiného souboru. Živý export přes změnu letního času zatím není ověřen.
+
+Nástroj `cez_status` uvádí historické ověření a jeho rozsah. Neověřuje nynější přihlášení ani dostupnost webu. Originální soubor není součástí veřejného pluginu.
 
 Browser workflow: načti správnou existující Edge kartu, vyber konkrétní okno podle viditelného elektroměru, nastav požadované období/profil, vyhledej data, otevři exportní nabídku, před kliknutím na CSV zahaj čekání na download a převezmi jeho místní cestu. Pokud export naviguje na chybu, vrať se na původní dashboard. Při expiraci přihlášení umožni běžné přihlášení uživatele; nezískávej cookies z profilu prohlížeče.
 

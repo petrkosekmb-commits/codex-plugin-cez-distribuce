@@ -33,7 +33,9 @@ Details: [plugin guide](plugins/cez-distribuce/README.md), [portal workflow (Cze
 
 ## Verification status
 
-The signed-in page and PND export menu were loaded on 7 October 2026. The download itself failed with a connection error during the initial test. A live export and the actual CSV schema therefore remain unverified. The local parser requires explicit column mapping, the meaning of the measured quantity, and units; synthetic tests do not demonstrate compatibility with every PND export.
+Version 0.1.3 was tested on 8 October 2026 with a downloaded full CSV for one meter, profile +A/-A/Rv in kW, covering September 2026. All 2,880 quarter-hour intervals were present, and consumption and grid-export totals matched the portal statistics after rounding to three decimal places. One interval carried a measured-data voltage-outage status; it was explicitly included to reproduce the portal total. Real metered data are kept outside this repository.
+
+The parser supports repeated `Datum`/`Status` headers using one-based column selectors (`#1`, `#2`, etc.), CP1250, decimal commas, and the PND end-of-day notation `24:00:00`. Select `timestamp_position="interval_end"` with the interval length to assign midnight readings to the previous day. Other export profiles, formats, and live daylight-saving-time exports have not been verified. Column mapping, quantity meaning, units, and acceptable statuses still require explicit selection; `cez_status` reports historical test scope, not current login or portal availability.
 
 According to the [ČEZ terms](https://www.cezdistribuce.cz/cs/pro-zakazniky/potrebuji-vyresit/elektromery-a-odecty/sluzba-automatickeho-zasilani-namerenych-dat), the official AZD service requires separate activation and at least 30 supply points of type A/B. This version does not include a SOAP client.
 

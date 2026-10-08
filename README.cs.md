@@ -33,7 +33,9 @@ Podrobnosti: [návod pluginu](plugins/cez-distribuce/README.cs.md), [postup pro 
 
 ## Stav ověření
 
-Přihlášená stránka a nabídka exportů PND byly načteny 7. 10. 2026. Samotné stažení při úvodní zkoušce skončilo chybou připojení. Živý export a skutečné schéma CSV tedy zatím nejsou ověřeny. Místní parser vyžaduje výslovné mapování sloupců, význam veličiny a jednotky; syntetické testy nejsou dokladem kompatibility s každým exportem PND.
+Verze 0.1.3 byla ověřena 8. 10. 2026 na skutečně staženém úplném CSV jednoho elektroměru, profilu +A/-A/Rv v kW za září 2026. Soubor obsahoval všech 2 880 čtvrthodinových intervalů a součty odběru i dodávky odpovídaly statistice portálu po zaokrouhlení na tři desetinná místa. Jeden interval měl status naměřených dat s výpadkem napětí; byl výslovně zahrnut pro shodu se součtem portálu. Skutečná naměřená data zůstávají mimo repozitář.
+
+Parser podporuje opakované názvy `Datum`/`Status` pomocí pozic sloupců od jedné (`#1`, `#2` atd.), CP1250, desetinné čárky a zápis konce dne `24:00:00`. Pro přiřazení půlnoční hodnoty předchozímu dni nastavte `timestamp_position="interval_end"` a délku intervalu. Ostatní profily, formáty a živé exporty přes změnu letního času nejsou ověřeny. Mapování sloupců, význam veličiny, jednotky a přijatelné statusy se stále zadávají výslovně; `cez_status` uvádí rozsah historické zkoušky, nikoli aktuální přihlášení nebo dostupnost portálu.
 
 Oficiální služba AZD podle [podmínek ČEZ](https://www.cezdistribuce.cz/cs/pro-zakazniky/potrebuji-vyresit/elektromery-a-odecty/sluzba-automatickeho-zasilani-namerenych-dat) vyžaduje samostatnou aktivaci a alespoň 30 odběrných míst typu A/B. Tato verze SOAP klienta neobsahuje.
 

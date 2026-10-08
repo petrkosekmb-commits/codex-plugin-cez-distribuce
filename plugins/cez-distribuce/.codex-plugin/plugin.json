@@ -1,6 +1,6 @@
 {
   "name": "cez-distribuce",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "repository": "https://github.com/petrkosekmb-commits/codex-plugin-cez-distribuce",
   "license": "MIT",
   "description": "Čtení a export naměřených dat ČEZ PND přes přihlášený portál a místní kontrola CSV.",

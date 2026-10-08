@@ -48,6 +48,20 @@ class CSVTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.summary(unit="kW")
 
+    def test_pnd_24_hour_endpoint_and_date_rollover(self):
+        self.write("Čas;Hodnota\n30.09.2026 23:45:00;4\n30.09.2026 24:00:00;8\n01.10.2026 00:15:00;12\n")
+        result = self.summary(time_format="%d.%m.%Y %H:%M:%S", quantity="mean_power",
+                              unit="kW", interval_minutes=15, timestamp_position="interval_end")
+        self.assertEqual(result["total_kwh"], "6.00")
+        self.assertEqual(result["irregular_steps"], 0)
+        self.assertEqual(result["daily"], [{"date": "2026-09-30", "kwh": "3.00"},
+                                            {"date": "2026-10-01", "kwh": "3.00"}])
+        self.assertEqual(cez.stamp("31.12.2026 24:00:00", "%d.%m.%Y %H:%M:%S").isoformat(),
+                         "2027-01-01T00:00:00")
+        for invalid in ("30.09.2026 24:01:00", "30.09.2026 24:00:01", "31.09.2026 24:00:00"):
+            with self.assertRaises(ValueError):
+                cez.stamp(invalid, "%d.%m.%Y %H:%M:%S")
+
     def test_register_difference_and_reset(self):
         self.write("Čas;Hodnota\n01.09.2026 00:00;100\n02.09.2026 00:00;104,5\n")
         self.assertEqual(self.summary(quantity="cumulative_register")["total_kwh"], "4.5")
@@ -98,6 +112,31 @@ class CSVTests(unittest.TestCase):
         self.assertEqual(result["total_kwh"], "1")
         self.assertEqual(result["rejected_rows"], 1)
         self.assertIsNone(result["period_complete"])
+
+    def test_pnd_repeated_headers_and_trailing_delimiter(self):
+        self.write('Datum;+A/TEST [kW];Status;Datum;-A/TEST [kW];Status;\n01.09.2026 00:15:00;4;OK;01.09.2026 00:15:00;8;OK;\n01.09.2026 00:30:00;2;ODHAD;01.09.2026 00:30:00;4;OK;\n', 'cp1250')
+        args = dict(path=str(self.csv), timestamp_column='#4', value_column='#5', time_format='%d.%m.%Y %H:%M:%S',
+                    quantity='mean_power', unit='kW', interval_minutes=15, status_column='#6', accepted_statuses=['OK'])
+        result = cez.summarize_csv(**args)
+        self.assertEqual(result['total_kwh'], '3.00')
+        self.assertEqual(result['selected_columns']['value']['position'], 5)
+        with self.assertRaises(ValueError):
+            cez.summarize_csv(**{**args, 'timestamp_column': 'Datum'})
+        with self.assertRaises(ValueError):
+            cez.summarize_csv(**{**args, 'value_column': '#99'})
+        self.assertEqual(cez.inspect_csv(path=str(self.csv))['column_selectors'][3]['selector'], '#4')
+
+    def test_interval_end_midnight_belongs_to_previous_day(self):
+        self.write('Čas;Hodnota\n30.09.2026 23:45;4\n01.10.2026 00:00;8\n')
+        result = self.summary(quantity='mean_power', unit='kW', interval_minutes=15, timestamp_position='interval_end')
+        self.assertEqual(result['daily'], [{'date': '2026-09-30', 'kwh': '3.00'}])
+        with self.assertRaises(ValueError):
+            self.summary(timestamp_position='interval_end')
+
+    def test_interval_crossing_midnight_without_boundary_refused(self):
+        self.write('Čas;Hodnota\n01.10.2026 00:05;4\n')
+        with self.assertRaises(ValueError):
+            self.summary(quantity='mean_power', unit='kW', interval_minutes=15, timestamp_position='interval_end')
 
     def test_gaps_and_unsorted_data(self):
         self.write("Čas;Hodnota\n01.09.2026 00:30;2\n01.09.2026 00:00;1\n")
