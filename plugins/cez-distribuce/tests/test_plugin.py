@@ -43,6 +43,12 @@ class CSVTests(unittest.TestCase):
     def test_mean_power_integrates_15_minutes(self):
         self.write("Čas;Hodnota\n01.09.2026 00:00;4\n01.09.2026 00:15;2\n")
         self.assertEqual(self.summary(quantity="mean_power", unit="kW", interval_minutes=15)["total_kwh"], "1.50")
+
+    def test_interval_start_crossing_midnight_is_rejected(self):
+        self.write("Čas;Hodnota\n01.09.2026 23:50;4\n")
+        with self.assertRaises(ValueError):
+            self.summary(quantity="mean_power", unit="kW", interval_minutes=15,
+                         timestamp_position="interval_start")
         with self.assertRaises(ValueError):
             self.summary(quantity="mean_power", unit="kW")
         with self.assertRaises(ValueError):

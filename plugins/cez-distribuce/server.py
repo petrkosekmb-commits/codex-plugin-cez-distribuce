@@ -232,6 +232,13 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
             if start_day != end_day:
                 raise ValueError("Interval zasahuje do více místních dnů; denní energii nelze bez rozdělení určit.")
             at = just_before_end
+        elif timestamp_position == "interval_start":
+            interval_end = at + timedelta(minutes=float(minutes))
+            just_before_end = interval_end - timedelta(microseconds=1)
+            start_day = (at.astimezone(zone) if aware else at).date()
+            end_day = (just_before_end.astimezone(zone) if aware else just_before_end).date()
+            if start_day != end_day:
+                raise ValueError("Interval zasahuje do více místních dnů; denní energii nelze bez rozdělení určit.")
         day = (at.astimezone(zone) if aware else at).date().isoformat()
         daily[day] += val * multiplier
     base.update({"total_kwh": str(sum(daily.values(), Decimal(0))),
