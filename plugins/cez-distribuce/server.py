@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 PORTAL = "https://pnd.cezdistribuce.cz/cezpnd2/external/dashboard/view"
 Z_ROOT = Path(os.environ.get("CEZ_OUTPUT_DIR", r"Z:\ZALOHA\07_CODEX\outputs\cez-distribuce")).expanduser()
 PENDING_ROOT = Path(os.environ.get("CEZ_PENDING_DIR", str(Path.home() / "Codex/pending-Z/outputs/cez-distribuce"))).expanduser()
@@ -232,7 +232,7 @@ def summarize_csv(path, timestamp_column, value_column, time_format, quantity, u
             if start_day != end_day:
                 raise ValueError("Interval zasahuje do více místních dnů; denní energii nelze bez rozdělení určit.")
             at = just_before_end
-        elif timestamp_position == "interval_start":
+        elif timestamp_position == "interval_start" and minutes is not None:
             interval_end = at + timedelta(minutes=float(minutes))
             just_before_end = interval_end - timedelta(microseconds=1)
             start_day = (at.astimezone(zone) if aware else at).date()

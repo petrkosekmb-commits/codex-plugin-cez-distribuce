@@ -49,6 +49,13 @@ class CSVTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.summary(quantity="mean_power", unit="kW", interval_minutes=15,
                          timestamp_position="interval_start")
+
+    def test_interval_start_without_duration_keeps_recorded_energy(self):
+        self.write("Čas;Hodnota\n01.09.2026 23:45;4\n")
+        self.assertEqual(self.summary(timestamp_position="interval_start")["total_kwh"], "4")
+        self.assertEqual(self.summary(quantity="mean_power", unit="kW", interval_minutes=15,
+                                     timestamp_position="interval_start")["daily"],
+                         [{"date": "2026-09-01", "kwh": "1.00"}])
         with self.assertRaises(ValueError):
             self.summary(quantity="mean_power", unit="kW")
         with self.assertRaises(ValueError):
